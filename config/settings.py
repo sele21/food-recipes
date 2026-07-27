@@ -76,6 +76,9 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.google',
     'allauth.socialaccount.providers.github',
 
+    #limiting
+    "django_ratelimit",
+
 ]
 
 # ============================================
@@ -378,3 +381,26 @@ SOCIALACCOUNT_PROVIDERS = {
     }
 }
 
+# adding the rate limiting settings
+RATELIMIT_VIEW = 'core.views.ratelimit_exceeded'  # Custom view for rate limit exceeded
+
+
+
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': 'redis://127.0.0.1:6379/1',
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        }
+    }
+}
+
+import warnings
+warnings.filterwarnings("ignore", message="cache backend django.core.cache.backends.locmem.LocMemCache is not officially supported")
+warnings.filterwarnings("ignore", message="cache backend django.core.cache.backends.locmem.LocMemCache does not support atomic increment")
+
+
+from django.core.cache import cache
+cache.get('dummy')  # Force cache initialization

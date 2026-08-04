@@ -57,4 +57,5 @@ def custom_500_view(request):
 
 def ratelimit_exceeded(request, exception):
     """Custom view for handling rate limit exceeded errors."""
-    return render(request, 'ratelimit_exceeded.html', status=429)
+    return render(request, 'rate_limit.html', status=429)
+

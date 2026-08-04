@@ -111,6 +111,7 @@ MIDDLEWARE = [
     "debug_toolbar.middleware.DebugToolbarMiddleware",  # Debug toolbar
     "django.middleware.security.SecurityMiddleware",  # Security enhancements
     "whitenoise.middleware.WhiteNoiseMiddleware",
+    'django_ratelimit.middleware.RatelimitMiddleware',
     "django.contrib.sessions.middleware.SessionMiddleware",  # Session management
     "django.middleware.common.CommonMiddleware",  # Common utilities
     "django.middleware.csrf.CsrfViewMiddleware",  # CSRF protection
@@ -119,6 +120,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",  # Clickjacking protection
     "allauth.account.middleware.AccountMiddleware",  # Allauth middleware
 ]
+
 
 # ============================================
 # URL CONFIGURATION
@@ -381,8 +383,13 @@ SOCIALACCOUNT_PROVIDERS = {
     }
 }
 
-# adding the rate limiting settings
-RATELIMIT_VIEW = 'core.views.ratelimit_exceeded'  # Custom view for rate limit exceeded
+
+RATELIMIT_VIEW = 'core.views.ratelimit_exceeded'
+
+RATELIMIT_RULES = {
+    'accounts/login/': '5/5m',
+    'accounts/signup/': '3/10m',
+} # Custom view for rate limit exceeded
 
 
 

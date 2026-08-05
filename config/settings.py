@@ -277,8 +277,7 @@ EMAIL_BACKEND = os.environ.get(
     "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
 )
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "noreply@foodrecipes.com")
-
-
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "dadufam15@gmail.com")
 
 # Media files
 MEDIA_URL = "/media/"
@@ -338,6 +337,7 @@ ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
 ACCOUNT_EMAIL_CONFIRMATION_EXPIRE_DAYS = 3
 ACCOUNT_EMAIL_CONFIRMATION_AUTHENTICATED_REDIRECT_URL = '/'
 ACCOUNT_EMAIL_CONFIRMATION_ANONYMOUS_REDIRECT_URL = '/accounts/login/'
+ACCOUNT_EMAIL_CONFIRMATION_TEMPLATE = 'account/email/password_reset_key.html'
 ACCOUNT_EMAIL_SUBJECT_PREFIX = '[Food Recipes] '
 ACCOUNT_USERNAME_REQUIRED = False
 ACCOUNT_USERNAME_MIN_LENGTH = 1
@@ -346,9 +346,11 @@ SOCIALACCOUNT_EMAIL_VERIFICATION = 'optional'
 SOCIALACCOUNT_QUERY_EMAIL = True
 SOCIALACCOUNT_AUTO_SIGNUP = True
 
-# Email Backend (for development)
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-DEFAULT_FROM_EMAIL = 'noreply@foodrecipes.com'
+# # Email Backend (for development)
+# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# DEFAULT_FROM_EMAIL = 'noreply@foodrecipes.com'
+# ADMIN_EMAIL = 'dadufam15@gmail.com'
+
 
 
 
@@ -411,3 +413,24 @@ warnings.filterwarnings("ignore", message="cache backend django.core.cache.backe
 
 from django.core.cache import cache
 cache.get('dummy')  # Force cache initialization
+
+# ============================================
+# LOGGING — Terminal + Email
+# ============================================
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'django.mail': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+    },
+}

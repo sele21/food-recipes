@@ -66,10 +66,11 @@ INSTALLED_APPS = [
     "cloudinary",
     "cloudinary_storage",
     # Local apps (our code)
-    "apps.accounts",  # User authentication and profiles
-    "apps.recipes",  # Main recipe functionality
-    "apps.core",  # Homepage and shared views
-    "apps.notifications",  # Activity feed and notifications
+    "accounts",  # User authentication and profiles
+    "recipes",  # Main recipe functionality
+    "core",  # Homepage and shared views
+    "notifications",  # Activity feed and notifications
+    "payments",  # Payment processing
 
     # social login apps
     'allauth.socialaccount',
@@ -78,6 +79,7 @@ INSTALLED_APPS = [
 
     #limiting
     "django_ratelimit",
+
 
 ]
 
@@ -279,9 +281,6 @@ EMAIL_BACKEND = os.environ.get(
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "noreply@foodrecipes.com")
 ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "dadufam15@gmail.com")
 
-# Media files
-MEDIA_URL = "/media/"
-MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 # ============================================
 # PRODUCTION SECURITY SETTINGS
 # ============================================
@@ -396,23 +395,27 @@ RATELIMIT_RULES = {
 
 
 
-CACHES = {
-    'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': 'redis://127.0.0.1:6379/1',
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+REDIS_URL = os.environ.get("REDIS_URL")
+
+if REDIS_URL:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': REDIS_URL,
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            }
         }
     }
-}
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'unique-snowflake',
+        }
+    }
 
-import warnings
-warnings.filterwarnings("ignore", message="cache backend django.core.cache.backends.locmem.LocMemCache is not officially supported")
-warnings.filterwarnings("ignore", message="cache backend django.core.cache.backends.locmem.LocMemCache does not support atomic increment")
-
-
-from django.core.cache import cache
-cache.get('dummy')  # Force cache initialization
+SILENCED_SYSTEM_CHECKS = ["django_ratelimit.E003", "django_ratelimit.W001"]
 
 # ============================================
 # LOGGING — Terminal + Email
@@ -434,3 +437,9 @@ LOGGING = {
         },
     },
 }
+
+# ================= PAYMENT SETTINGS =================
+CHAPA_SECRET_KEY = os.environ.get("CHAPA_SECRET_KEY")
+CHAPA_PUBLIC_KEY = os.environ.get("CHAPA_PUBLIC_KEY")
+
+

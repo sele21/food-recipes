@@ -90,15 +90,21 @@
         <div class="row">
             {% for recipe in recipes %}
             <div class="col-md-4 mb-4">
-                <div class="card h-100">
-                    {% if recipe.featured_image %}
-                    <img src="https://res.cloudinary.com/{{ cloud_name }}/image/upload/w_300,h_200,c_fill/{{ recipe.featured_image }}"
-                         class="card-img-top" alt="{{ recipe.title }}" style="height: 200px; object-fit: cover;">
-                    {% else %}
-                    <div class="card-img-top bg-light text-center py-5" style="height: 200px;">
-                        <i class="fas fa-utensils fa-3x text-secondary"></i>
+                    <div class="position-relative">
+                        {% if recipe.featured_image %}
+                        <img src="https://res.cloudinary.com/{{ cloud_name }}/image/upload/w_300,h_200,c_fill/{{ recipe.featured_image }}"
+                             class="card-img-top" alt="{{ recipe.title }}" style="height: 200px; object-fit: cover;">
+                        {% else %}
+                        <div class="card-img-top bg-light text-center py-5" style="height: 200px;">
+                            <i class="fas fa-utensils fa-3x text-secondary"></i>
+                        </div>
+                        {% endif %}
+                        {% if recipe.is_premium %}
+                        <span class="position-absolute top-0 end-0 m-2 badge bg-warning text-dark shadow-sm">
+                            <i class="fas fa-crown"></i> {{ recipe.price }} ETB
+                        </span>
+                        {% endif %}
                     </div>
-                    {% endif %}
                     <div class="card-body">
                         <h5 class="card-title">{{ recipe.title }}</h5>
                         <p class="card-text text-muted small">

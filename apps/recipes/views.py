@@ -45,6 +45,7 @@ from notifications.models import Activity
 from django.views.generic.edit import UpdateView, DeleteView
 
 
+
 class RecipeListView(ListView):
     model = Recipe
     template_name = "recipes/recipe_list.html"
@@ -80,7 +81,7 @@ class RecipeListView(ListView):
                 ingredients__name__icontains=ingredient
             ).distinct()
 
-        return queryset
+        return queryset.select_related('creator', 'category')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -95,6 +96,9 @@ class RecipeListView(ListView):
         context["cloud_name"] = settings.CLOUDINARY_STORAGE["CLOUD_NAME"]
 
         return context
+
+
+from payments.models import Purchase
 
 
 class RecipeDetailView(DetailView):
@@ -124,6 +128,21 @@ class RecipeDetailView(DetailView):
             context["user_bookmarked"] = False
             context["user_rating"] = None
 
+        # Premium Paywall Access Control
+        has_access = True
+        if recipe.is_premium:
+            if self.request.user.is_authenticated:
+                if self.request.user == recipe.creator or self.request.user.id == recipe.creator_id:
+                    has_access = True
+                else:
+                    has_access = Purchase.objects.filter(
+                        user=self.request.user, recipe=recipe, status=Purchase.STATUS_COMPLETED
+                    ).exists()
+            else:
+                has_access = False
+
+        context["has_access"] = has_access
+
         context["cloud_name"] = settings.CLOUDINARY_STORAGE["CLOUD_NAME"]
 
         # Add this similar recipes
@@ -141,6 +160,8 @@ class RecipeCreateView(LoginRequiredMixin, CreateView):
         "prep_time",
         "cook_time",
         "servings",
+        "is_premium",
+        "price",
         "featured_image",
     ]
     template_name = "recipes/recipe_form.html"
@@ -167,14 +188,18 @@ class RecipeCreateView(LoginRequiredMixin, CreateView):
 
         if self.request.POST:
             context["ingredient_formset"] = IngredientFormSet(
-                self.request.POST, instance=self.object
+                self.request.POST, instance=self.object, prefix="ingredients"
             )
             context["step_formset"] = StepFormSet(
-                self.request.POST, instance=self.object
+                self.request.POST, instance=self.object, prefix="steps"
             )
         else:
-            context["ingredient_formset"] = IngredientFormSet(instance=self.object)
-            context["step_formset"] = StepFormSet(instance=self.object)
+            context["ingredient_formset"] = IngredientFormSet(
+                instance=self.object, prefix="ingredients"
+            )
+            context["step_formset"] = StepFormSet(
+                instance=self.object, prefix="steps"
+            )
 
         return context
 
@@ -204,25 +229,17 @@ class RecipeCreateView(LoginRequiredMixin, CreateView):
         return reverse_lazy("recipes:recipe_list")
 
 
-@login_required
-def toggle_like(request, recipe_id):
-    recipe = get_object_or_404(Recipe, id=recipe_id)
-    like = Like.objects.filter(recipe=recipe, user=request.user)
-
-    if like.exists():
-        like.delete()
-    else:
-        Like.objects.create(recipe=recipe, user=request.user)
-
-    return redirect("recipes:recipe_detail", slug=recipe.slug)
-
 
 @login_required
 def add_comment(request, recipe_id):
     recipe = get_object_or_404(Recipe, id=recipe_id)
-    content = request.POST.get("content")
+    content = request.POST.get("content", "").strip()
 
-    if content:
+    if not content:
+        messages.error(request, "Comment cannot be empty.")
+    elif len(content) > 2000:
+        messages.error(request, "Comment is too long (max 2000 characters).")
+    else:
         comment = Comment.objects.create(
             recipe=recipe, user=request.user, content=content
         )
@@ -233,8 +250,6 @@ def add_comment(request, recipe_id):
             target=comment,  # Point to the comment itself
             recipient=recipe.creator,  # Notify recipe owner
         )
-    else:
-        messages.error(request, "Comment cannot be empty.")
 
     return redirect("recipes:recipe_detail", slug=recipe.slug)
 
@@ -330,6 +345,8 @@ class RecipeUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         "prep_time",
         "cook_time",
         "servings",
+        "is_premium",
+        "price",
         "featured_image",
     ]
     template_name = "recipes/recipe_form.html"
@@ -360,39 +377,34 @@ class RecipeUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
 
         if self.request.POST:
             context["ingredient_formset"] = IngredientFormSet(
-                self.request.POST, instance=recipe
+                self.request.POST, instance=recipe, prefix="ingredients"
             )
-            context["step_formset"] = StepFormSet(self.request.POST, instance=recipe)
+            context["step_formset"] = StepFormSet(
+                self.request.POST, instance=recipe, prefix="steps"
+            )
         else:
-            context["ingredient_formset"] = IngredientFormSet(instance=recipe)
-            context["step_formset"] = StepFormSet(instance=recipe)
+            context["ingredient_formset"] = IngredientFormSet(
+                instance=recipe, prefix="ingredients"
+            )
+            context["step_formset"] = StepFormSet(
+                instance=recipe, prefix="steps"
+            )
 
         return context
 
     def form_valid(self, form):
-        print("=== FORM VALID CALLED ===")
         context = self.get_context_data()
         ingredient_formset = context["ingredient_formset"]
         step_formset = context["step_formset"]
 
-        print(f"Ingredient formset valid: {ingredient_formset.is_valid()}")
-        print(f"Step formset valid: {step_formset.is_valid()}")
-
         if ingredient_formset.is_valid() and step_formset.is_valid():
             self.object = form.save()
-            print(f"Recipe saved with ID: {self.object.id}")
-
             ingredient_formset.instance = self.object
             step_formset.instance = self.object
             ingredient_formset.save()
             step_formset.save()
-            print("Ingredients and steps saved")
-
             return super().form_valid(form)
         else:
-            print("Formset errors:")
-            print(ingredient_formset.errors)
-            print(step_formset.errors)
             return self.form_invalid(form)
 
     def get_success_url(self):
@@ -499,20 +511,6 @@ class CollectionCreateView(LoginRequiredMixin, CreateView):
     def get_success_url(self):
         return reverse_lazy("recipes:collection_detail", kwargs={"pk": self.object.pk})
 
-
-class CollectionCreateView(LoginRequiredMixin, CreateView):
-    """create a new collection"""
-
-    model = Collection
-    fields = ["name", "description", "is_public"]
-    template_name = "recipes/collection_form.html"
-
-    def form_valid(self, form):
-        form.instance.creator = self.request.user
-        return super().form_valid(form)
-
-    def get_success_url(self):
-        return reverse_lazy("recipes:collection_detail", kwargs={"pk": self.object.pk})
 
 
 class CollectionUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
@@ -652,21 +650,21 @@ class RecommendedRecipesView(LoginRequiredMixin, ListView):
         return [r["recipe"] for r in recommendations][:50]
 
 
-def get_context_data(self, **kwargs):
-    context = super().get_context_data(**kwargs)
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
 
-    # Add reasons to context
-    if hasattr(self, "recommendation_reasons"):
-        context["recommendation_reasons"] = self.recommendation_reasons
+        # Add reasons to context
+        if hasattr(self, "recommendation_reasons"):
+            context["recommendation_reasons"] = self.recommendation_reasons
 
-    # Trending
-    week_ago = timezone.now() - timedelta(days=7)
-    trending = (
-        Recipe.objects.filter(is_published=True, created_at__gte=week_ago)
-        .annotate(
-            recent_likes=Count("likes", filter=Q(likes__created_at__gte=week_ago))
+        # Trending
+        week_ago = timezone.now() - timedelta(days=7)
+        trending = (
+            Recipe.objects.filter(is_published=True, created_at__gte=week_ago)
+            .annotate(
+                recent_likes=Count("likes", filter=Q(likes__created_at__gte=week_ago))
+            )
+            .order_by("-recent_likes")[:5]
         )
-        .order_by("-recent_likes")[:5]
-    )
-    context["trending"] = trending
-    return context
+        context["trending"] = trending
+        return context

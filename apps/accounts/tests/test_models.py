@@ -71,10 +71,9 @@ class UserModelTest(TestCase):
     def test_user_str_method_without_username(self):
         """test string fallback if no username"""
 
-        user = User.objects.create_user(
+        user = User.objects.create(
             username="",
             email="nouser@example.com",
-            password="testpassword",
         )
 
         self.assertEqual(str(user), "nouser@example.com")

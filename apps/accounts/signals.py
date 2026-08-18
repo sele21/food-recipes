@@ -16,7 +16,7 @@ def send_admin_notification_on_signup(sender, instance, created, **kwargs):
             message,
             settings.DEFAULT_FROM_EMAIL,
             [settings.ADMIN_EMAIL],
-            fail_silently=False,
+            fail_silently=True,
         )
 
 

@@ -80,6 +80,16 @@
 </li>
 
             <!-- END ADD -->
+            <li class="nav-item">
+              <a class="nav-link position-relative" href="{% url 'notifications:list' %}">
+                <i class="fas fa-bell"></i>
+                {% if unread_count > 0 %}
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                  {{ unread_count }}
+                </span>
+                {% endif %}
+              </a>
+            </li>
             <li class="nav-item dropdown">
               <a
                 class="nav-link dropdown-toggle"
@@ -116,21 +126,12 @@
               </ul>
             </li>
             {% else %}
-        <a class="nav-link" href="{% url 'account_login' %}">Login</a>
-    </li>
-    <li class="nav-item">
-        <a class="nav-link" href="{% url 'account_signup' %}">Sign Up</a>
-    </li>
-    <li class="nav-item">
-    <a class="nav-link position-relative" href="{% url 'notifications:list' %}">
-        <i class="fas fa-bell"></i>
-        {% if unread_count > 0 %}
-        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-            {{ unread_count }}
-        </span>
-        {% endif %}
-    </a>
-</li>
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'account_login' %}">Login</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'account_signup' %}">Sign Up</a>
+            </li>
             {% endif %}
           </ul>
         </div>

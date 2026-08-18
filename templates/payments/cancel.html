@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block title %}Payment Cancelled{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+  <div class="row justify-content-center">
+    <div class="col-md-6 text-center">
+      <div class="card shadow-sm border-0 p-4">
+        <div class="card-body">
+          <div class="mb-3">
+            <i class="fas fa-exclamation-triangle text-warning fa-5x"></i>
+          </div>
+          <h2 class="text-dark fw-bold">Payment Cancelled</h2>
+          <p class="text-muted lead mt-3">
+            Your transaction was not completed. You were not charged.
+          </p>
+          <div class="d-grid gap-2 col-8 mx-auto mt-4">
+            {% if recipe %}
+            <a href="{% url 'payments:checkout' recipe.id %}" class="btn btn-warning btn-lg fw-bold">
+              <i class="fas fa-sync-alt me-2"></i> Try Again ({{ recipe.price }} ETB)
+            </a>
+            <a href="{% url 'recipes:recipe_detail' recipe.slug %}" class="btn btn-outline-secondary">
+              Return to Recipe
+            </a>
+            {% else %}
+            <a href="{% url 'recipes:recipe_list' %}" class="btn btn-success btn-lg">
+              <i class="fas fa-arrow-left me-2"></i> Return to Recipes
+            </a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

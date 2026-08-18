@@ -1,284 +1,401 @@
 {% extends 'base.html' %}
-
 {% block title %}{{ recipe.title }} - Food Recipes{% endblock %}
-
 {% block content %}
 <div class="row">
-    <div class="col-md-8">
-        <div class="d-flex justify-content-between align-items-start">
-    <h1>{{ recipe.title }}</h1>
+  <div class="col-md-8">
+    <div class="d-flex justify-content-between align-items-start">
+      <h1>
+        {{ recipe.title }}
+        {% if recipe.is_premium %}
+        <span class="badge bg-warning text-dark align-middle ms-2 fs-6">
+          <i class="fas fa-crown"></i> {{ recipe.price }} ETB
+        </span>
+        {% endif %}
+      </h1>
+
+      {% if user == recipe.creator %}
+      <div>
+        <a
+          href="{% url 'recipes:recipe_edit' recipe.slug %}"
+          class="btn btn-outline-success btn-sm"
+        >
+          <i class="fas fa-edit"></i> Edit
+        </a>
+        <a
+          href="{% url 'recipes:recipe_delete' recipe.slug %}"
+          class="btn btn-outline-danger btn-sm"
+        >
+          <i class="fas fa-trash"></i> Delete
+        </a>
+      </div>
+      {% endif %}
+    </div>
+    <p class="text-muted">
+      By
+      <a
+        href="{% url 'accounts:profile' recipe.creator.username %}"
+        class="text-success"
+      >
+        {{ recipe.creator.username }}
+      </a>
+      | Category:
+      <a href="?category={{ recipe.category.slug }}"
+        >{{ recipe.category.name }}</a
+      >
+      | {{ recipe.created_at|date:"M d, Y" }}
+    </p>
+
+    {% if recipe.featured_image %}
+    <img
+      src="https://res.cloudinary.com/{{ cloud_name }}/image/upload/w_300,h_200,c_fill/{{ recipe.featured_image }}"
+      class="card-img-top"
+      alt="{{ recipe.title }}"
+      style="height: 200px; width: 300px; object-fit: cover"
+    />
+    {% comment %}
+    <img
+      src="{{ recipe.featured_image.url }}"
+      class="img-fluid rounded mb-4"
+      alt="{{ recipe.title }}"
+    />
+    {% endcomment %} {% endif %}
+
+    <div class="card mb-4">
+      <div class="card-body">
+        <h5>Description</h5>
+        <p>{{ recipe.description }}</p>
+      </div>
+    </div>
     
-    {% if user == recipe.creator %}
-    <div>
-        <a href="{% url 'recipes:recipe_edit' recipe.slug %}" 
-           class="btn btn-outline-success btn-sm">
-            <i class="fas fa-edit"></i> Edit
+
+
+
+    <div class="row mb-4">
+      <div class="col-md-4">
+        <div class="card text-center">
+          <div class="card-body">
+            <i class="fas fa-clock fa-2x text-success"></i>
+            <h6>Prep Time</h6>
+            <p class="h5">{{ recipe.prep_time }} mins</p>
+          </div>
+        </div>
+      </div>
+      {% if recipe.cook_time %}
+      <div class="col-md-4">
+        <div class="card text-center">
+          <div class="card-body">
+            <i class="fas fa-fire fa-2x text-success"></i>
+            <h6>Cook Time</h6>
+            <p class="h5">{{ recipe.cook_time }} mins</p>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+      <div class="col-md-4">
+        <div class="card text-center">
+          <div class="card-body">
+            <i class="fas fa-users fa-2x text-success"></i>
+            <h6>Servings</h6>
+            <p class="h5">{{ recipe.servings }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% if has_access %}
+    <div class="row">
+      <div class="col-md-6">
+        <div class="card mb-4">
+          <div class="card-header bg-success text-white">
+            <h5 class="mb-0">Ingredients</h5>
+          </div>
+          <div class="card-body">
+            <ul class="list-unstyled">
+              {% for ingredient in recipe.ingredients.all %}
+              <li class="mb-2">
+                {{ ingredient.quantity }} {{ ingredient.unit }} {{ ingredient.name }}
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="card mb-4">
+          <div class="card-header bg-success text-white">
+            <h5 class="mb-0">Steps</h5>
+          </div>
+          <div class="card-body">
+            <ol class="list-group list-group-numbered">
+              {% for step in recipe.steps.all %}
+              <li class="list-group-item border-0">{{ step.description }}</li>
+              {% endfor %}
+            </ol>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <!-- Premium Paywall Locked Box -->
+    <div class="card mb-4 border-warning shadow-sm">
+      <div class="card-header bg-warning text-dark d-flex align-items-center justify-content-between">
+        <h5 class="mb-0"><i class="fas fa-lock me-2"></i> Premium Recipe Content Locked</h5>
+        <span class="badge bg-dark text-warning fs-6">{{ recipe.price }} ETB</span>
+      </div>
+      <div class="card-body text-center py-5">
+        <i class="fas fa-crown fa-4x text-warning mb-3"></i>
+        <h4 class="card-title">Unlock Full Ingredients & Step-by-Step Cooking Guide</h4>
+        <p class="card-text text-muted max-w-md mx-auto">
+          This is an exclusive premium recipe. Purchase once for <strong>{{ recipe.price }} ETB</strong> via Chapa to get lifetime access.
+        </p>
+        {% if user.is_authenticated %}
+        <a href="{% url 'payments:checkout' recipe.id %}" class="btn btn-warning btn-lg fw-bold px-5 mt-3">
+          <i class="fas fa-shopping-cart me-2"></i> Buy Recipe Now ({{ recipe.price }} ETB)
         </a>
-        <a href="{% url 'recipes:recipe_delete' recipe.slug %}" 
-           class="btn btn-outline-danger btn-sm">
-            <i class="fas fa-trash"></i> Delete
+        {% else %}
+        <a href="{% url 'account_login' %}?next={{ request.path }}" class="btn btn-warning btn-lg fw-bold px-5 mt-3">
+          <i class="fas fa-sign-in-alt me-2"></i> Login to Buy ({{ recipe.price }} ETB)
         </a>
+        {% endif %}
+      </div>
     </div>
     {% endif %}
-</div>
-        <p class="text-muted">
-        By <a href="{% url 'accounts:profile' recipe.creator.username %}" class="text-success">
-            {{ recipe.creator.username }}
-        </a> | 
-        Category: <a href="?category={{ recipe.category.slug }}">{{ recipe.category.name }}</a> |
-        {{ recipe.created_at|date:"M d, Y" }}
-    </p>
-            
-        {% if recipe.featured_image %}
-        <img src="https://res.cloudinary.com/{{ cloud_name }}/image/upload/w_300,h_200,c_fill/{{ recipe.featured_image }}"
-                         class="card-img-top" alt="{{ recipe.title }}" style="height: 200px;width: 300px; object-fit: cover;">
-        {% comment %} <img src="{{ recipe.featured_image.url }}" class="img-fluid rounded mb-4" alt="{{ recipe.title }}"> {% endcomment %}
-        {% endif %}
-        
-        <div class="card mb-4">
-            <div class="card-body">
-                <h5>Description</h5>
-                <p>{{ recipe.description }}</p>
-            </div>
-        </div>
-        
-        <div class="row mb-4">
-            <div class="col-md-4">
-                <div class="card text-center">
-                    <div class="card-body">
-                        <i class="fas fa-clock fa-2x text-success"></i>
-                        <h6>Prep Time</h6>
-                        <p class="h5">{{ recipe.prep_time }} mins</p>
-                    </div>
-                </div>
-            </div>
-            {% if recipe.cook_time %}
-            <div class="col-md-4">
-                <div class="card text-center">
-                    <div class="card-body">
-                        <i class="fas fa-fire fa-2x text-success"></i>
-                        <h6>Cook Time</h6>
-                        <p class="h5">{{ recipe.cook_time }} mins</p>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
-            <div class="col-md-4">
-                <div class="card text-center">
-                    <div class="card-body">
-                        <i class="fas fa-users fa-2x text-success"></i>
-                        <h6>Servings</h6>
-                        <p class="h5">{{ recipe.servings }}</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="row">
-            <div class="col-md-6">
-                <div class="card mb-4">
-                    <div class="card-header bg-success text-white">
-                        <h5 class="mb-0">Ingredients</h5>
-                    </div>
-                    <div class="card-body">
-                        <ul class="list-unstyled">
-                            {% for ingredient in recipe.ingredients.all %}
-                            <li class="mb-2">
-                                {{ ingredient.quantity }} {{ ingredient.unit }} {{ ingredient.name }}
-                            </li>
-                            {% endfor %}
-                        </ul>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-md-6">
-                <div class="card mb-4">
-                    <div class="card-header bg-success text-white">
-                        <h5 class="mb-0">Steps</h5>
-                    </div>
-                    <div class="card-body">
-                        <ol class="list-group list-group-numbered">
-                            {% for step in recipe.steps.all %}
-                            <li class="list-group-item border-0">{{ step.description }}</li>
-                            {% endfor %}
-                        </ol>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Rating, Like, Bookmark Section -->
-<div class="card mt-4">
-    <div class="card-header bg-success text-white">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <span class="me-3">
-                    <i class="fas fa-heart"></i> {{ recipe.likes.count }}
-                </span>
-                <span class="me-3">
-                    <i class="fas fa-star"></i> 
-                    {{ recipe.average_rating|floatformat:1 }} ({{ recipe.rating_count }})
-                </span>
-                <span>
-                    <i class="fas fa-bookmark"></i> {{ recipe.bookmarks.count }}
-                </span>
-            </div>
-            {% if user.is_authenticated %}
-            <div>
-                <!-- Like Button -->
-                <form method="post" action="{% url 'recipes:toggle_like' recipe.id %}" class="d-inline">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-sm {% if user in recipe.likes.all %}btn-danger{% else %}btn-outline-light{% endif %}">
-                        <i class="{% if user in recipe.likes.all %}fas{% else %}far{% endif %} fa-heart"></i>
-                        {% if user in recipe.likes.all %}Liked{% else %}Like{% endif %}
-                    </button>
-                </form>
-                
-                <!-- Bookmark Button -->
-                <form method="post" action="{% url 'recipes:toggle_bookmark' recipe.id %}" class="d-inline ms-2">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-sm {% if user in recipe.bookmarks.all %}btn-warning{% else %}btn-outline-light{% endif %}">
-                        <i class="{% if user in recipe.bookmarks.all %}fas{% else %}far{% endif %} fa-bookmark"></i>
-                        {% if user in recipe.bookmarks.all %}Saved{% else %}Save{% endif %}
-                    </button>
-                </form>
-            </div>
-            {% endif %}
-        </div>
-    </div>
-</div>
 
-{% if user.is_authenticated %}
-<!-- Add to Collection Dropdown -->
-<div class="mt-3">
-    <div class="dropdown">
-        <button class="btn btn-outline-success dropdown-toggle" type="button" data-bs-toggle="dropdown">
-            <i class="fas fa-folder-plus"></i> Add to Collection
+
+    <!-- Rating, Like, Bookmark Section -->
+    <div class="card mt-4">
+      <div class="card-header bg-success text-white">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <span class="me-3">
+              <i class="fas fa-heart"></i> {{ recipe.likes.count }}
+            </span>
+            <span class="me-3">
+              <i class="fas fa-star"></i>
+              {{ recipe.average_rating|floatformat:1 }} ({{ recipe.rating_count }})
+            </span>
+            <span>
+              <i class="fas fa-bookmark"></i> {{ recipe.bookmarks.count }}
+            </span>
+          </div>
+          {% if user.is_authenticated %}
+          <div>
+            <!-- Like Button -->
+            <form
+              method="post"
+              action="{% url 'recipes:toggle_like' recipe.id %}"
+              class="d-inline"
+            >
+              {% csrf_token %}
+              <button
+                type="submit"
+                class="btn btn-sm {% if user_liked %}btn-danger{% else %}btn-outline-light{% endif %}"
+              >
+                <i
+                  class="{% if user_liked %}fas{% else %}far{% endif %} fa-heart"
+                ></i>
+                {% if user_liked %}Liked{% else %}Like{% endif %}
+              </button>
+            </form>
+
+            <!-- Bookmark Button -->
+            <form
+              method="post"
+              action="{% url 'recipes:toggle_bookmark' recipe.id %}"
+              class="d-inline ms-2"
+            >
+              {% csrf_token %}
+              <button
+                type="submit"
+                class="btn btn-sm {% if user_bookmarked %}btn-warning{% else %}btn-outline-light{% endif %}"
+              >
+                <i
+                  class="{% if user_bookmarked %}fas{% else %}far{% endif %} fa-bookmark"
+                ></i>
+                {% if user_bookmarked %}Saved{% else %}Save{% endif %}
+              </button>
+            </form>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {% if user.is_authenticated %}
+    <!-- Add to Collection Dropdown -->
+    <div class="mt-3">
+      <div class="dropdown">
+        <button
+          class="btn btn-outline-success dropdown-toggle"
+          type="button"
+          data-bs-toggle="dropdown"
+        >
+          <i class="fas fa-folder-plus"></i> Add to Collection
         </button>
         <ul class="dropdown-menu">
-            {% for collection in user.collections.all %}
-            <li>
-                <form method="post" action="{% url 'recipes:add_to_collection' recipe.id %}">
-                    {% csrf_token %}
-                    <input type="hidden" name="collection_id" value="{{ collection.id }}">
-                    <button type="submit" class="dropdown-item">
-                        {{ collection.name }}
-                        {% if recipe in collection.items.all %}
-                            <span class="text-success">(Added)</span>
-                        {% endif %}
-                    </button>
-                </form>
-            </li>
-            {% empty %}
-            <li><span class="dropdown-item-text text-muted">No collections</span></li>
-            {% endfor %}
-            <li><hr class="dropdown-divider"></li>
-            <li>
-                <a class="dropdown-item text-success" href="{% url 'recipes:collection_create' %}">
-                    <i class="fas fa-plus"></i> New Collection
-                </a>
-            </li>
-        </ul>
-    </div>
-</div>
-{% endif %}
-
-<!-- Rating Section -->
-{% if user.is_authenticated %}
-<div class="card mt-4">
-    <div class="card-header bg-success text-white">
-        <h5 class="mb-0"><i class="fas fa-star"></i> Rate this Recipe</h5>
-    </div>
-    <div class="card-body">
-        <form method="post" action="{% url 'recipes:rate_recipe' recipe.id %}">
-            {% csrf_token %}
-            <div class="d-flex gap-2 mb-3">
-                {% for i in "12345"|make_list %}
-                <button type="submit" name="value" value="{{ forloop.counter }}" 
-                        class="btn {% if user_rating and user_rating.value == forloop.counter %}btn-warning{% else %}btn-outline-warning{% endif %}"
-                        style="flex: 1;">
-                    {{ forloop.counter }}★
-                </button>
-                {% endfor %}
-            </div>
-        </form>
-        
-        {% if user_rating %}
-            <p class="text-muted mb-0">
-                <i class="fas fa-check-circle text-success"></i> 
-                You rated this <strong>{{ user_rating.value }}★</strong>
-            </p>
-        {% endif %}
-    </div>
-</div>
-{% endif %}
-        <!-- Comments Section -->
-        <div class="card mt-4">
-            <div class="card-header bg-success text-white">
-                <h5 class="mb-0"><i class="fas fa-comments"></i> Comments ({{ recipe.comments.count }})</h5>
-            </div>
-            <div class="card-body">
-                {% if user.is_authenticated %}
-                    <form method="post" action="{% url 'recipes:add_comment' recipe.id %}" class="mb-4">
-                        {% csrf_token %}
-                        <div class="mb-3">
-                            <textarea name="content" class="form-control" rows="2" placeholder="Add a comment..."></textarea>
-                        </div>
-                        <button type="submit" class="btn btn-success btn-sm">Post Comment</button>
-                    </form>
-                {% else %}
-                    <p class="text-muted"><a href="{% url 'account_login' %}">Login</a> to comment</p>
+          {% for collection in user.collections.all %}
+          <li>
+            <form
+              method="post"
+              action="{% url 'recipes:add_to_collection' recipe.id %}"
+            >
+              {% csrf_token %}
+              <input
+                type="hidden"
+                name="collection_id"
+                value="{{ collection.id }}"
+              />
+              <button type="submit" class="dropdown-item">
+                {{ collection.name }} {% if recipe in collection.items.all %}
+                <span class="text-success">(Added)</span>
                 {% endif %}
-                
-                {% for comment in recipe.comments.all %}
-                    <div class="border-bottom mb-3 pb-2">
-                        <strong>{{ comment.user.username }}</strong>
-                        <small class="text-muted">{{ comment.created_at|timesince }} ago</small>
-                        <p class="mt-1">{{ comment.content }}</p>
-                    </div>
-                {% empty %}
-                    <p class="text-muted">No comments yet.</p>
-                {% endfor %}
-            </div>
-        </div>
+              </button>
+            </form>
+          </li>
+          {% empty %}
+          <li>
+            <span class="dropdown-item-text text-muted">No collections</span>
+          </li>
+          {% endfor %}
+          <li><hr class="dropdown-divider" /></li>
+          <li>
+            <a
+              class="dropdown-item text-success"
+              href="{% url 'recipes:collection_create' %}"
+            >
+              <i class="fas fa-plus"></i> New Collection
+            </a>
+          </li>
+        </ul>
+      </div>
     </div>
-    
-    <div class="col-md-4">
-        <!-- Sidebar -->
-        <div class="card">
-            <div class="card-header bg-success text-white">
-                <h5 class="mb-0">More Recipes</h5>
-            </div>
-            <div class="card-body">
-                <p>Coming soon...</p>
-            </div>
-        </div>
+    {% endif %}
+
+    <!-- Rating Section -->
+    {% if user.is_authenticated %}
+    <div class="card mt-4">
+      <div class="card-header bg-success text-white">
+        <h5 class="mb-0"><i class="fas fa-star"></i> Rate this Recipe</h5>
+      </div>
+      <div class="card-body">
+        <form method="post" action="{% url 'recipes:rate_recipe' recipe.id %}">
+          {% csrf_token %}
+          <div class="d-flex gap-2 mb-3">
+            {% for i in "12345"|make_list %}
+            <button
+              type="submit"
+              name="value"
+              value="{{ forloop.counter }}"
+              class="btn {% if user_rating and user_rating.value == forloop.counter %}btn-warning{% else %}btn-outline-warning{% endif %}"
+              style="flex: 1"
+            >
+              {{ forloop.counter }}★
+            </button>
+            {% endfor %}
+          </div>
+        </form>
+
+        {% if user_rating %}
+        <p class="text-muted mb-0">
+          <i class="fas fa-check-circle text-success"></i>
+          You rated this <strong>{{ user_rating.value }}★</strong>
+        </p>
+        {% endif %}
+      </div>
     </div>
+    {% endif %}
+    <!-- Comments Section -->
+    <div class="card mt-4">
+      <div class="card-header bg-success text-white">
+        <h5 class="mb-0">
+          <i class="fas fa-comments"></i> Comments ({{ recipe.comments.count }})
+        </h5>
+      </div>
+      <div class="card-body">
+        {% if user.is_authenticated %}
+        <form
+          method="post"
+          action="{% url 'recipes:add_comment' recipe.id %}"
+          class="mb-4"
+        >
+          {% csrf_token %}
+          <div class="mb-3">
+            <textarea
+              name="content"
+              class="form-control"
+              rows="2"
+              placeholder="Add a comment..."
+            ></textarea>
+          </div>
+          <button type="submit" class="btn btn-success btn-sm">
+            Post Comment
+          </button>
+        </form>
+        {% else %}
+        <p class="text-muted">
+          <a href="{% url 'account_login' %}">Login</a> to comment
+        </p>
+        {% endif %} {% for comment in recipe.comments.all %}
+        <div class="border-bottom mb-3 pb-2">
+          <strong>{{ comment.user.username }}</strong>
+          <small class="text-muted"
+            >{{ comment.created_at|timesince }} ago</small
+          >
+          <p class="mt-1">{{ comment.content }}</p>
+        </div>
+        {% empty %}
+        <p class="text-muted">No comments yet.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <!-- Sidebar -->
+    <div class="card">
+      <div class="card-header bg-success text-white">
+        <h5 class="mb-0">More Recipes</h5>
+      </div>
+      <div class="card-body">
+        <p>Coming soon...</p>
+      </div>
+    </div>
+  </div>
 </div>
 <!-- Similar Recipes Section -->
 {% if similar_recipes %}
 <div class="card mt-4">
-    <div class="card-header bg-success text-white">
-        <h5 class="mb-0"><i class="fas fa-link"></i> Similar Recipes You Might Like</h5>
-    </div>
-    <div class="card-body">
-        <div class="row">
-            {% for similar in similar_recipes %}
-            <div class="col-md-3 mb-3">
-                <div class="card h-100">
-                    {% if similar.featured_image %}
-                    <img src="{{ similar.featured_image.url }}" class="card-img-top" style="height: 100px; object-fit: cover;">
-                    {% endif %}
-                    <div class="card-body p-2">
-                        <h6 class="card-title small">{{ similar.title }}</h6>
-                        <a href="{% url 'recipes:recipe_detail' similar.slug %}" class="btn btn-sm btn-success w-100">View</a>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
+  <div class="card-header bg-success text-white">
+    <h5 class="mb-0">
+      <i class="fas fa-link"></i> Similar Recipes You Might Like
+    </h5>
+  </div>
+  <div class="card-body">
+    <div class="row">
+      {% for similar in similar_recipes %}
+      <div class="col-md-3 mb-3">
+        <div class="card h-100">
+          {% if similar.featured_image %}
+          <img
+            src="{{ similar.featured_image.url }}"
+            class="card-img-top"
+            style="height: 100px; object-fit: cover"
+            alt="featured image"
+          />
+          {% endif %}
+          <div class="card-body p-2">
+            <h6 class="card-title small">{{ similar.title }}</h6>
+            <a
+              href="{% url 'recipes:recipe_detail' similar.slug %}"
+              class="btn btn-sm btn-success w-100"
+              >View</a
+            >
+          </div>
         </div>
+      </div>
+      {% endfor %}
     </div>
+  </div>
 </div>
-{% endif %}
-{% endblock %}
+{% endif %} {% endblock %}

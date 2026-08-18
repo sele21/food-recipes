@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.utils.text import slugify
+from django.db.models import Avg
 
 from django.utils import timezone
 from datetime import timedelta
@@ -66,6 +67,8 @@ class Recipe(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_published = models.BooleanField(default=True)
+    is_premium = models.BooleanField(default=False)
+    price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, blank=True)
 
     def __str__(self):
         return self.title
@@ -87,10 +90,9 @@ class Recipe(models.Model):
 
     @property
     def average_rating(self):
-        ratings = self.ratings.all()
-        if ratings:
-            return sum(r.value for r in ratings) / len(ratings)
-        return 0
+        """Return average rating using a single DB aggregation query."""
+        result = self.ratings.aggregate(avg=Avg('value'))
+        return round(result['avg'], 1) if result['avg'] else 0
 
     @property
     def total_time(self):
@@ -110,14 +112,17 @@ class Recipe(models.Model):
             + self.comments.count()
         )
 
-    def trending_score(self):
-        """Calculate trending score based on recent activity"""
+    def trending_score(self, days=7):
+        """Calculate trending score based on recent activity.
 
+        Args:
+            days: Number of past days to consider (default 7).
+        """
         since = timezone.now() - timedelta(days=days)
-        recent_likes = self.likes.filter(created_at_gte=since).count()
-        recent_bookmarks = self.bookmarks.filter(created_at_gte=since).count()
-        recent_ratings = self.ratings.filter(created_at_gte=since).count()
-        recent_comments = self.comments.filter(created_at_gte=since).count()
+        recent_likes = self.likes.filter(created_at__gte=since).count()
+        recent_bookmarks = self.bookmarks.filter(created_at__gte=since).count()
+        recent_ratings = self.ratings.filter(created_at__gte=since).count()
+        recent_comments = self.comments.filter(created_at__gte=since).count()
 
         score = (
             (recent_likes * 5)
@@ -213,7 +218,7 @@ class Comment(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)  # auto_now updates on every save
 
     class Meta:
         ordering = ["-created_at"]

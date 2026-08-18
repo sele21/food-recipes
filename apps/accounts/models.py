@@ -3,7 +3,6 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth import get_user_model
 from django.conf import settings
-from django.apps import AppConfig
 
 # User = get_user_model()
 
@@ -41,7 +40,7 @@ class CustomUser(AbstractUser):
     )  # timestamp for when the user account
 
     def __str__(self):
-        return self.username
+        return self.username or self.email
 
     # helper method to count user's recipes
     def recipe_count(self):
@@ -50,6 +49,7 @@ class CustomUser(AbstractUser):
     class Meta:
         verbose_name = _("user")
         verbose_name_plural = _("users")
+        app_label = "accounts"
 
 
 class Follow(models.Model):
@@ -64,6 +64,7 @@ class Follow(models.Model):
     class Meta:
         unique_together = ["follower", "followed"]
         ordering = ["-created_at"]
+        app_label = "accounts"
 
     def clean(self):
         if self.follower == self.followed:
@@ -77,10 +78,3 @@ class Follow(models.Model):
 
     def __str__(self):
         return f"{self.follower.username} follows {self.followed.username}"
-
-class AccountsConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'apps.accounts'
-
-    def ready(self):
-        import apps.accounts.signals  

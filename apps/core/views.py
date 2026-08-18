@@ -1,6 +1,6 @@
 from django.views.generic import TemplateView
-from recipes.models import Recipe, Category
-from django.contrib.auth import get_user_model, models
+from recipes.models import Recipe, Category, Like
+from django.contrib.auth import get_user_model
 from django.shortcuts import render
 
 User = get_user_model()
@@ -28,20 +28,22 @@ class HomeView(TemplateView):
             context['featured_recipes'] = []
 
         try:
-
             context['categories'] = Category.objects.all()
         except Exception:
             context['categories'] = []
+
         try:
             context['user_count'] = User.objects.count()
         except Exception:
             context['user_count'] = 0
 
         try:
-            context['like_count'] = Recipe.objects.filter(is_published=True).aggregate(total_likes=models.Sum('likes'))['total_likes'] or 0
+            likes = Like.objects.filter(recipe__is_published=True).count()
+            context['total_likes'] = likes
+            context['like_count'] = likes
         except Exception:
+            context['total_likes'] = 0
             context['like_count'] = 0
-
 
         return context
 

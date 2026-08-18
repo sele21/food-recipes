@@ -10,6 +10,8 @@ from django.contrib import messages
 from .models import Follow
 
 
+from django.db.models import Count
+
 User = get_user_model()
 
 
@@ -30,8 +32,8 @@ class ProfileView(DetailView):
         context["recipes"] = user.recipes.filter(is_published=True)
         # get user stat
         context["total_recipes"] = user.recipes.count()
-        context["total_likes_received"] = sum(
-            recipe.likes.count() for recipe in user.recipes.all()
+        context["total_likes_received"] = (
+            user.recipes.aggregate(total=Count("likes"))["total"] or 0
         )
 
         context["followers_count"] = Follow.objects.filter(followed=user).count()

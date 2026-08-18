@@ -14,6 +14,7 @@ urlpatterns = [
     path("", include("core.urls")),  # We'll add core and recipes URLs later
     path("recipes/", include("recipes.urls")),
     path("notifications/", include("notifications.urls")),
+    path("payments/", include("payments.urls")),  # Add this line for payments app
 ]
 
 if settings.DEBUG:

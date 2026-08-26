@@ -199,3 +199,66 @@ class PaymentSystemTests(TestCase):
         }
         res = initialize_payment("test@example.com", Decimal("100.00"), "tx-ref-1", "http://callback", "http://return")
         self.assertEqual(res["status"], "success")
+
+    def test_payment_success_renders_receipt_and_recipe_details(self):
+        """Test payment_success view displays receipt, recipe details, and auto-redirect countdown."""
+        purchase = Purchase.objects.create(
+            user=self.user,
+            recipe=self.premium_recipe,
+            transaction_id="tx-success-receipt",
+            amount=Decimal("150.00"),
+            status=Purchase.STATUS_COMPLETED,
+        )
+
+        self.client.login(username="buyer", password="password123")
+        url = reverse("payments:success") + "?tx_ref=tx-success-receipt"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "payments/success.html")
+        self.assertEqual(response.context["purchase"], purchase)
+        self.assertEqual(response.context["recipe"], self.premium_recipe)
+        self.assertContains(response, "Truffle Cake")
+        self.assertContains(response, "150.00")
+        self.assertContains(response, "COMPLETED")
+        self.assertContains(response, "countdown")
+
+    @patch("payments.views.verify_payment")
+    def test_payment_success_verifies_pending_purchase(self, mock_verify):
+        """Test payment_success verifies pending purchase with gateway and displays receipt."""
+        mock_verify.return_value = {"status": "success", "data": {"status": "success"}}
+        purchase = Purchase.objects.create(
+            user=self.user,
+            recipe=self.premium_recipe,
+            transaction_id="tx-pending-verify",
+            amount=Decimal("150.00"),
+            status=Purchase.STATUS_PENDING,
+        )
+
+        self.client.login(username="buyer", password="password123")
+        url = reverse("payments:success") + "?tx_ref=tx-pending-verify"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        purchase.refresh_from_db()
+        self.assertEqual(purchase.status, Purchase.STATUS_COMPLETED)
+        self.assertEqual(response.context["recipe"], self.premium_recipe)
+        self.assertContains(response, "Truffle Cake")
+
+    def test_payment_success_immediate_redirect_option(self):
+        """Test redirect=now param on payment_success redirects directly to recipe page."""
+        Purchase.objects.create(
+            user=self.user,
+            recipe=self.premium_recipe,
+            transaction_id="tx-direct-redirect",
+            amount=Decimal("150.00"),
+            status=Purchase.STATUS_COMPLETED,
+        )
+
+        self.client.login(username="buyer", password="password123")
+        url = reverse("payments:success") + "?tx_ref=tx-direct-redirect&redirect=now"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("recipes:recipe_detail", kwargs={"slug": self.premium_recipe.slug}))
+

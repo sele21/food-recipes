@@ -148,29 +148,55 @@ def checkout(request, recipe_id):
 
 def payment_success(request):
     """
-    Success redirect landing page after Chapa payment.
-    Verifies payment if webhook has not fired yet and redirects to recipe page.
+    Success landing page after payment.
+    Verifies payment status with gateway if pending, adds success message,
+    and passes purchase & recipe receipt details to the template with auto-redirect logic.
     """
-    tx_ref = request.GET.get('tx_ref')
+    tx_ref = (
+        request.GET.get('tx_ref')
+        or request.GET.get('trx_ref')
+        or request.GET.get('reference')
+        or request.GET.get('transaction_id')
+    )
+
+    purchase = None
+    recipe = None
+
     if tx_ref:
-        purchase = Purchase.objects.filter(transaction_id=tx_ref).first()
-        if purchase:
-            # If webhook hasn't updated status yet, check with Chapa API directly
-            if purchase.status != Purchase.STATUS_COMPLETED:
-                verification = verify_payment(tx_ref)
-                v_status = verification.get('status') if isinstance(verification, dict) else getattr(verification, 'status', None)
-                v_data = verification.get('data') if isinstance(verification, dict) else getattr(verification, 'data', {})
-                data_status = v_data.get('status') if isinstance(v_data, dict) else getattr(v_data, 'status', None)
+        purchase = Purchase.objects.filter(transaction_id=tx_ref).select_related('recipe', 'user').first()
+    elif request.user.is_authenticated:
+        # Fallback to user's most recent completed or pending purchase if tx_ref query param omitted
+        purchase = (
+            Purchase.objects.filter(user=request.user)
+            .select_related('recipe', 'user')
+            .order_by('-purchased_at')
+            .first()
+        )
 
-                if v_status == 'success' or data_status == 'success':
-                    purchase.status = Purchase.STATUS_COMPLETED
-                    purchase.save()
+    if purchase:
+        recipe = purchase.recipe
+        # If webhook hasn't updated status yet, verify directly with gateway
+        if purchase.status != Purchase.STATUS_COMPLETED and tx_ref:
+            verification = verify_payment(tx_ref)
+            v_status = verification.get('status') if isinstance(verification, dict) else getattr(verification, 'status', None)
+            v_data = verification.get('data') if isinstance(verification, dict) else getattr(verification, 'data', {})
+            data_status = v_data.get('status') if isinstance(v_data, dict) else getattr(v_data, 'status', None)
 
-            if purchase.status == Purchase.STATUS_COMPLETED:
-                messages.success(request, f"🎉 Payment successful! You now have full access to '{purchase.recipe.title}'.")
-                return redirect('recipes:recipe_detail', slug=purchase.recipe.slug)
+            if v_status == 'success' or data_status == 'success':
+                purchase.status = Purchase.STATUS_COMPLETED
+                purchase.save()
 
-    return render(request, 'payments/success.html', {'message': 'Payment completed!'})
+        if purchase.status == Purchase.STATUS_COMPLETED:
+            messages.success(request, f"🎉 Payment successful! You now have full access to '{recipe.title}'.")
+            if request.GET.get('redirect') == 'now':
+                return redirect('recipes:recipe_detail', slug=recipe.slug)
+
+    context = {
+        'purchase': purchase,
+        'recipe': recipe,
+        'message': 'Payment completed!',
+    }
+    return render(request, 'payments/success.html', context)
 
 
 def payment_cancel(request):
